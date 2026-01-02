@@ -2,11 +2,9 @@
 import { neon } from '@neondatabase/serverless';
 import { User, Industry, Reading, AppState } from '../types';
 
-// استفاده از متغیر محیطی DATABASE_URL که در پنل Vercel ست خواهیم کرد
 const DATABASE_URL = process.env.DATABASE_URL;
 const sql = DATABASE_URL ? neon(DATABASE_URL) : null;
 
-// Helper to initialize tables if they don't exist
 const initTables = async () => {
     if (!sql) return;
     try {
@@ -66,7 +64,6 @@ export const subscribe = (onData: (data: Partial<AppState>) => void) => {
             const readingsRaw = await sql`SELECT * FROM readings ORDER BY timestamp DESC`;
             const assignmentsRaw = await sql`SELECT * FROM assignments`;
 
-            // تبدیل نام فیلدهای دیتابیس (snake_case) به کد (camelCase)
             const users = usersRaw.map((u: any) => ({
                 id: u.id,
                 username: u.username,
@@ -93,7 +90,7 @@ export const subscribe = (onData: (data: Partial<AppState>) => void) => {
                 value: Number(r.value),
                 imageUrl: r.image_url,
                 recordedBy: r.recorded_by,
-                isManual: false // Default value for code consistency
+                isManual: false
             }));
 
             const pendingConfigs: Record<string, Industry[]> = {};
@@ -103,7 +100,7 @@ export const subscribe = (onData: (data: Partial<AppState>) => void) => {
 
             onData({ users, industries, readings: readings as Reading[], pendingConfigs });
         } catch (e) {
-            console.error("خطا در دریافت داده‌ها:", e);
+            console.error("Data Fetch Error:", e);
         }
     };
 
@@ -145,19 +142,22 @@ export const putItem = async (coll: string, item: any) => {
             `;
         }
     } catch (e) {
-        console.error("خطا در ثبت آیتم:", e);
+        console.error("Put Item Error:", e);
     }
 };
 
-// تابع کمکی برای حذف با استفاده از sql.unsafe طبق درخواست
 export const deleteItem = async (coll: string, id: string) => {
     if (!sql) return;
     try {
-        // توجه: در صورتی که sql مستقیماً از neon() باشد، ممکن است unsafe نداشته باشد. 
-        // در اینجا طبق درخواست کاربر پیاده‌سازی شده است.
-        await (sql as any).unsafe(`DELETE FROM ${coll} WHERE id = $1`, [id]);
+        if (coll === 'readings') {
+            await sql`DELETE FROM readings WHERE id = ${id}`;
+        } else if (coll === 'users') {
+            await sql`DELETE FROM users WHERE id = ${id}`;
+        } else if (coll === 'industries') {
+            await sql`DELETE FROM industries WHERE id = ${id}`;
+        }
     } catch (e) {
-        console.error("خطا در حذف آیتم:", e);
+        console.error("Delete Error:", e);
     }
 };
 

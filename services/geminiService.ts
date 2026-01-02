@@ -1,6 +1,7 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
 
+// Initialize the AI client using the modern named parameter pattern
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 interface AIResult {
@@ -17,8 +18,9 @@ export const extractMeterReading = async (base64DataUrl: string): Promise<AIResu
     const mimeType = matches[1];
     const base64Data = matches[2];
 
-    const prompt = "Identify the numeric gas meter reading (counter) shown on the device in this image. Return ONLY the number in a JSON format.";
+    const prompt = "Analyze the image of this industrial gas meter. Identify the large numeric digits on the counter. Return ONLY the number in JSON format.";
 
+    // Use ai.models.generateContent directly as per unified SDK guidelines
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: {
@@ -34,7 +36,7 @@ export const extractMeterReading = async (base64DataUrl: string): Promise<AIResu
           properties: {
             value: {
               type: Type.NUMBER,
-              description: "The numeric reading found on the gas meter display."
+              description: "The numeric value read from the gas meter's counter."
             }
           },
           required: ["value"]
@@ -42,6 +44,7 @@ export const extractMeterReading = async (base64DataUrl: string): Promise<AIResu
       }
     });
 
+    // Access the .text property directly (not a method)
     const resultText = response.text;
     if (!resultText) return { value: null };
 
