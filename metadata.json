@@ -1,0 +1,7 @@
+{
+  "name": "hamid-gasmeter",
+  "description": "Industrial gas meter reading application with Gemini AI OCR and consumption analytics.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
