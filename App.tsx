@@ -66,11 +66,22 @@ interface AdminViewProps {
 export default function App() {
   const [activeTab, setActiveTab] = useState<'home' | 'scan' | 'history' | 'settings' | 'admin'>('home');
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Explicitly initialize with empty structures as requested
   const [state, setState] = useState<AppState>({ 
-    industries: [], readings: [], users: [], currentUser: null, pendingConfigs: {} 
+    industries: [], 
+    readings: [], 
+    users: [], 
+    currentUser: null, 
+    pendingConfigs: {} 
   });
 
   useEffect(() => {
+    // Failsafe: if DB takes too long, stop loading anyway
+    const timeout = setTimeout(() => {
+      setIsLoading(false);
+    }, 4000);
+
     const unsubscribe = DB.subscribe((newData) => {
       const sessionUserId = sessionStorage.getItem('currentUserId');
       setState(prev => {
@@ -78,11 +89,23 @@ export default function App() {
         if (sessionUserId && newData.users) {
           currentUser = newData.users.find(u => u.id === sessionUserId) || null;
         }
-        return { ...prev, ...newData, currentUser };
+        return { 
+          ...prev, 
+          industries: newData.industries || [],
+          readings: newData.readings || [],
+          users: newData.users || [],
+          pendingConfigs: newData.pendingConfigs || {},
+          currentUser 
+        };
       });
       setIsLoading(false);
+      clearTimeout(timeout);
     });
-    return () => unsubscribe();
+
+    return () => {
+      unsubscribe();
+      clearTimeout(timeout);
+    };
   }, []);
 
   const handleLogin = (user: User) => {
@@ -222,16 +245,14 @@ const LoginView = ({ users, onLogin }: LoginViewProps) => {
           </Button>
         </form>
 
-        {users.length === 0 && (
-          <div className="p-5 bg-blue-50 border border-blue-100 rounded-3xl">
-            <div className="flex items-center gap-2 mb-2 text-blue-700">
-              <Info size={18} />
-              <p className="text-xs font-bold">دیتابیس در حال حاضر خالی است</p>
-            </div>
-            <p className="text-[10px] text-blue-600 leading-relaxed mb-4">برای راه‌اندازی اولیه و افزودن صنایع و کاربران، به عنوان مدیر سیستم وارد شوید:</p>
-            <button onClick={() => onLogin({ id: 'init-admin', username: 'admin', password: '', fullName: 'مدیر کل سیستم', role: 'admin' })} className="w-full bg-blue-600 text-white text-xs py-3 rounded-xl font-black hover:bg-blue-700 transition-colors shadow-lg shadow-blue-100">ورود به پنل مدیریت</button>
+        <div className="p-5 bg-blue-50 border border-blue-100 rounded-3xl">
+          <div className="flex items-center gap-2 mb-2 text-blue-700">
+            <Info size={18} />
+            <p className="text-xs font-bold">دیتابیس در حال حاضر متصل است</p>
           </div>
-        )}
+          <p className="text-[10px] text-blue-600 leading-relaxed mb-4">برای راه‌اندازی اولیه و افزودن صنایع و کاربران، به عنوان مدیر سیستم وارد شوید:</p>
+          <button onClick={() => onLogin({ id: 'init-admin', username: 'admin', password: 'admin', fullName: 'مدیر کل سیستم', role: 'admin' })} className="w-full bg-blue-600 text-white text-xs py-3 rounded-xl font-black hover:bg-blue-700 transition-colors shadow-lg shadow-blue-100">ورود پیش‌فرض (admin)</button>
+        </div>
       </div>
     </div>
   );
@@ -414,6 +435,7 @@ const ScanView = ({ industries, onSave, onCancel }: ScanViewProps) => {
             </div>
           </div>
         ))}
+        <Button variant="secondary" fullWidth onClick={onCancel} className="mt-4">انصراف و بازگشت</Button>
       </div>
     );
     

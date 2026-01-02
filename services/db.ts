@@ -2,7 +2,19 @@
 import { neon } from '@neondatabase/serverless';
 import { User, Industry, Reading, AppState } from '../types';
 
-const DATABASE_URL = process.env.DATABASE_URL;
+// Safely retrieve the DATABASE_URL. The define plugin in vite.config.ts will replace this.
+const getDbUrl = () => {
+  try {
+    // Check import.meta.env first, then fallback to process.env
+    return (typeof import.meta !== 'undefined' && import.meta.env?.VITE_DATABASE_URL) 
+      || (typeof process !== 'undefined' && process.env?.DATABASE_URL) 
+      || '';
+  } catch (e) {
+    return '';
+  }
+};
+
+const DATABASE_URL = getDbUrl();
 const sql = DATABASE_URL ? neon(DATABASE_URL) : null;
 
 const initTables = async () => {
@@ -57,7 +69,13 @@ export const subscribe = (onData: (data: Partial<AppState>) => void) => {
     const pollInterval = 5000;
 
     const fetchData = async () => {
-        if (!sql || !isSubscribed) return;
+        if (!isSubscribed) return;
+        
+        if (!sql) {
+            onData({ users: [], industries: [], readings: [], pendingConfigs: {} });
+            return;
+        }
+
         try {
             const usersRaw = await sql`SELECT * FROM users`;
             const industriesRaw = await sql`SELECT * FROM industries`;
@@ -101,6 +119,7 @@ export const subscribe = (onData: (data: Partial<AppState>) => void) => {
             onData({ users, industries, readings: readings as Reading[], pendingConfigs });
         } catch (e) {
             console.error("Data Fetch Error:", e);
+            onData({ users: [], industries: [], readings: [], pendingConfigs: {} });
         }
     };
 
